@@ -9,7 +9,7 @@ from src.data_utils import clip_and_scale_image
 
 
 def read_metadata(type = 'train', # can be one of ['train', 'test', 'all' ]
-                  data_dir = '/home/ubuntu/cs231n_project/land_cover_representation/'):
+                  data_dir = '/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/'):
     metadata = pd.read_csv(os.path.join(data_dir,'metadata.csv'))
     if type == 'all':
         return metadata
@@ -24,8 +24,8 @@ def read_metadata(type = 'train', # can be one of ['train', 'test', 'all' ]
     return train_metadata
 
 def get_tiles(type='train', # can be one of ['train', 'test', 'all' ]
-              data_dir = '/home/ubuntu/cs231n_project/land_cover_representation/'):
-    metadata = read_metadata(type, data_dir)
+              data_dir = '/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/'):
+    metadata = read_metadata(type, dapwdta_dir)
     filenames = metadata['file_name']
     data = []
 
