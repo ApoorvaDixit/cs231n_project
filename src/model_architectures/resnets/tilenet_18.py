@@ -51,7 +51,7 @@ class TileNet(nn.Module):
         self.in_channels = in_channels
         self.z_dim = z_dim
         self.in_planes = 64
-
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=1,
             padding=1, bias=False)
@@ -73,6 +73,7 @@ class TileNet(nn.Module):
         return nn.Sequential(*layers)
 
     def encode(self, x):
+        x.to(self.device)
         x = F.relu(self.bn1(self.conv1(x)))
         x = self.layer1(x)
         x = self.layer2(x)
@@ -103,9 +104,13 @@ class TileNet(nn.Module):
         """
         Computes loss for each batch.
         """
+        patch.to(self.device)
+        neighbor.to(self.device)
+        distant.to(self.device)
+        
         z_p, z_n, z_d = (self.encode(patch), self.encode(neighbor),
             self.encode(distant))
-        return self.triplet_loss(z_p, z_n, z_d, margin=margin, l2=l2)
+        return self.triplet_loss(z_p, z_n, z_d, margin=margin, l2_reg=l2)
 
 
 def make_tilenet(in_channels=4, z_dim=512):
