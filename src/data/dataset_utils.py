@@ -155,3 +155,41 @@ def TripletDataLoader(img_type, bands=4, batch_size=4, shuffle=True, augment=Tru
     dataset = TripletDataset(transform=transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     return dataloader
+
+class TileDataset():
+    def __init__(self, type = 'test', data_dir='/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/', transform=None):
+        # tuples of (filename, label)
+        self.test_files = []
+        self.test_file_labels = []
+        self.tile_dir = data_dir
+        metadata = pd.read_csv(os.path.join(data_dir,'metadata.csv'))
+        tilenet_metadata = metadata[metadata['split_str']=='test']
+        self.test_files = tilenet_metadata['file_name']
+        self.test_file_labels = tilenet_metadata['y']
+        
+        
+    def __len__(self):
+        return len(self.test_files)
+    
+    def __getitem__(self, idx):
+        filename = self.test_files[idx]
+        label = self.test_file_labels[idx]
+        tile = np.load(os.path.join(self.tile_dir, filename))
+        # Get first 4 NAIP channels (5th is CDL mask)
+        tile = tile[:,:,:4]
+        # Rearrange to PyTorch order
+        tile = np.moveaxis(tile, -1, 0)
+        tile = np.expand_dims(tile, axis=0)
+        # Scale to [0, 1]
+        tile = tile / 255
+        # Embed tile
+        tile = torch.from_numpy(tile).float()
+        return (tile, label)
+        
+    
+
+def TilesClassificationDataLoader(batch_size=4, num_workers=4):
+    dataset = TileDataset()
+    dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
+    return dataloader
+    
