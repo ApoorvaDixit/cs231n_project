@@ -80,13 +80,12 @@ class TileNet(nn.Module):
         self.layer5 = self._make_layer(self.z_dim, num_blocks[4],
             stride=2)
 
-    def _make_layer(self, block, planes, num_blocks, stride, no_relu=False):
+    def _make_layer(self, planes, num_blocks, stride, no_relu=False):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride=stride,
-                no_relu=no_relu, activation=self.activation))
-            self.in_planes = planes * block.expansion
+            layers.append(ResidualBlock(self.in_planes, planes, stride=stride))
+            self.in_planes = planes
         return nn.Sequential(*layers)
 
     def encode(self, x):
@@ -137,3 +136,9 @@ def make_tilenet_18(in_channels=4, z_dim=512):
     """
     num_blocks = [2, 2, 2, 2, 2]
     return TileNet(num_blocks, in_channels=in_channels, z_dim=z_dim)
+
+
+def make_tilenet_50():
+    # 1. change block type to parameter
+    # 2. Define residual block
+    # 3. Introduce expansion parameter
