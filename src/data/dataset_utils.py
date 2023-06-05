@@ -159,13 +159,11 @@ def TripletDataLoader(img_type, bands=4, batch_size=4, shuffle=True, augment=Tru
 class TileDataset():
     def __init__(self, type = 'test', data_dir='/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/', transform=None):
         # tuples of (filename, label)
-        self.test_files = []
-        self.test_file_labels = []
         self.tile_dir = data_dir
         metadata = pd.read_csv(os.path.join(data_dir,'metadata.csv'))
         tilenet_metadata = metadata[metadata['split_str']=='test']
-        self.test_files = tilenet_metadata['file_name']
-        self.test_file_labels = tilenet_metadata['y']
+        self.test_files = tilenet_metadata['file_name'].tolist()
+        self.test_file_labels = tilenet_metadata['y'].tolist()
         
         
     def __len__(self):
@@ -184,7 +182,8 @@ class TileDataset():
         tile = tile / 255
         # Embed tile
         tile = torch.from_numpy(tile).float()
-        return (tile, label)
+        sample = {'tile': tile, 'label': label}
+        return sample
         
     
 
