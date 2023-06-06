@@ -7,7 +7,8 @@ import time
 from tqdm import tqdm 
 
 from data.dataset_utils import TripletDataLoader
-from model_architectures.googlenet.googtilenet import make_googtilenet
+#from model_architectures.googlenet.googtilenet import make_googtilenet
+from model_architectures.googlenet.googtilenet_v3 import make_googtilenet
 from training import train_triplet_epoch
 
 img_type = 'naip'
@@ -31,7 +32,7 @@ dataloader = TripletDataLoader(img_type, batch_size=64)
 
 print('Dataset set up.')
 
-epochs = 10
+epochs = 5
 margin = 10
 l2 = 0.01
 print_every = 10000
@@ -41,13 +42,18 @@ if not os.path.exists(model_dir): os.makedirs(model_dir)
 
 t0 = time.time()
 time_struct = time.localtime(t0)
-formatted_date = time.strftime("%I:%M %p, %B %d, %Y", time_struct)  # Example: June 02, 2023
+formatted_datetime = time.strftime("%I:%M %p, %B %d, %Y", time_struct)  # Example: June 02, 2023
 
-print('Begin training.................')
+print(f'Begin training at {formatted_datetime}................')
 for epoch in tqdm(range(0, epochs), desc="epoch loop"):
     (avg_loss, avg_l_n, avg_l_d, avg_l_nd) = train_triplet_epoch(
         net, cuda, dataloader, optimizer, epoch+1, margin=margin, l2=l2,
         print_every=print_every, t0=t0)
-    
-model_fn = os.path.join(model_dir, 'GoogTiLeNet_epoch{}.ckpt'.format(epochs))
-torch.save(net.state_dict(), model_fn)
+    if (epoch % 5) == 0 and epoch>0:
+        model_fn = os.path.join(model_dir, 'GoogTiLeNet_v3_epoch{}.ckpt'.format(epoch))
+        torch.save(net.state_dict(), model_fn)
+
+time_struct = time.localtime(time.time())
+formatted_datetime = time.strftime("%I:%M %p, %B %d, %Y", time_struct)  # Example: June 02, 2023
+print(f'Finished training at {formatted_datetime}................')
+

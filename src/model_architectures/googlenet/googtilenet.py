@@ -1,13 +1,12 @@
-'''Modified GoogLeNet from torchvision. Taken from https://github.com/pytorch/vision/blob/main/torchvision/models/googlenet.py 
+'''Modified GoogLeNet v1 from torchvision. Taken from https://github.com/pytorch/vision/blob/main/torchvision/models/googlenet.py 
 Reference:
-
+ `Going Deeper with Convolutions <http://arxiv.org/abs/1409.4842>`_.
 '''
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-#from torch.autograd import Variable
 from typing import Any, Callable, List, Optional, Tuple
 
 
@@ -111,8 +110,6 @@ class GoogTiLeNet(nn.Module):
         self,
         in_channels: int = 4, 
         z_dim: int = 512,
-        #num_classes: int = 1000,
-        # init_weights: Optional[bool] = None,
         init_weights = True,
         blocks = [BasicConv2d, Inception, InceptionAux],
         dropout: float = 0.2,
@@ -148,7 +145,13 @@ class GoogTiLeNet(nn.Module):
         self.inception5a = inception_block(832, 256, 160, 320, 32, 128, 128)
         self.inception5b = inception_block(832, 384, 192, 384, 48, 128, 128)
 
+        # new
+        self.inception6a = inception_block(1024, 384, 192, 384, 48, 128, 128)
+        self.inception6b = inception_block(1024, 384, 192, 384, 48, 128, 128)
+
+        # after inception4a
         self.aux1 = inception_aux_block(512, z_dim, dropout=dropout_aux)
+        # after inception4d
         self.aux2 = inception_aux_block(528, z_dim, dropout=dropout_aux)
     
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
@@ -208,6 +211,12 @@ class GoogTiLeNet(nn.Module):
         x = self.inception5a(x)
         # N x 832 x 7 x 7
         x = self.inception5b(x)
+        # N x 1024 x 7 x 7
+
+        # new
+        x = self.inception6a(x)
+        # N x 1024 x 7 x 7
+        x = self.inception6b(x)
         # N x 1024 x 7 x 7
 
         x = self.avgpool(x)
