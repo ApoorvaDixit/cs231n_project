@@ -3,12 +3,16 @@ import sys
 import os
 import torch
 from torch import optim
+from torch.optim.lr_scheduler import MultiStepLR
+
 import time
 from tqdm import tqdm 
 
 from data.dataset_utils import TripletDataLoader
-#from model_architectures.googlenet.googtilenet import make_googtilenet
+# from model_architectures.googlenet.googtilenet import make_googtilenet
+# model_name = 'GoogTiLeNet'
 from model_architectures.googlenet.googtilenet_v3 import make_googtilenet
+model_name = 'GoogTiLeNet_v3'
 from training import train_triplet_epoch
 
 img_type = 'naip'
@@ -21,10 +25,22 @@ net = make_googtilenet(in_channels=in_channels, z_dim=z_dim)
 if cuda: net.cuda()
 net.train()
 
+
+# Load parameters
+# model_fn = 'models/GoogTiLeNet_v3_epoch5.ckpt'
+# checkpoint = torch.load(model_fn)
+# net.load_state_dict(checkpoint)
+# net.eval()
+
+
 print('GoogTiLeNet set up complete.')
 
 lr = 1e-3
-optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999))
+optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999), weight_decay=0.01)
+scheduler = None
+# scheduler = MultiStepLR(optimizer, 
+#                         milestones=[3, 4], # List of epoch indices
+#                         gamma =0.1)
 
 print('Optimizer set up complete.')
 
@@ -32,10 +48,12 @@ dataloader = TripletDataLoader(img_type, batch_size=64)
 
 print('Dataset set up.')
 
-epochs = 5
+epochs = 15
+epoch_start = 0
 margin = 10
 l2 = 0.01
 print_every = 10000
+max_grad_norm = 1.0 # None
 
 model_dir = 'models/'
 if not os.path.exists(model_dir): os.makedirs(model_dir)
@@ -45,13 +63,13 @@ time_struct = time.localtime(t0)
 formatted_datetime = time.strftime("%I:%M %p, %B %d, %Y", time_struct)  # Example: June 02, 2023
 
 print(f'Begin training at {formatted_datetime}................')
-for epoch in tqdm(range(0, epochs), desc="epoch loop"):
+for epoch in tqdm(range(epoch_start, epochs), desc="epoch loop"):
     (avg_loss, avg_l_n, avg_l_d, avg_l_nd) = train_triplet_epoch(
         net, cuda, dataloader, optimizer, epoch+1, margin=margin, l2=l2,
-        print_every=print_every, t0=t0)
-    if (epoch % 5) == 0 and epoch>0:
-        model_fn = os.path.join(model_dir, 'GoogTiLeNet_v3_epoch{}.ckpt'.format(epoch))
-        torch.save(net.state_dict(), model_fn)
+        print_every=print_every, t0=t0, max_grad_norm=max_grad_norm, scheduler=scheduler)
+    
+    model_fn = os.path.join(model_dir, f'{model_name}_epoch{epoch+1}.ckpt')
+    torch.save(net.state_dict(), model_fn)
 
 time_struct = time.localtime(time.time())
 formatted_datetime = time.strftime("%I:%M %p, %B %d, %Y", time_struct)  # Example: June 02, 2023
