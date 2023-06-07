@@ -11,6 +11,13 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-cp", "--checkpoint", help="Relative path to checkpoint file. For example, models/GoogTiLeNet_epoch10.ckpt")
+
+args = parser.parse_args()
+
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
@@ -19,17 +26,17 @@ if cuda:
     net = net.cuda()
 
 # Load parameters
-model_fn = 'models/GoogTiLeNet_epoch10.ckpt'
-checkpoint = torch.load(model_fn)
+checkpoint = torch.load(args.checkpoint)
 net.load_state_dict(checkpoint)
 net.eval()
 
-dataloader = TilesClassificationDataLoader(batch_size=1)
 
-n_tiles = 27972
+
+n_tiles = 8000
 X = np.zeros((n_tiles, z_dim))
 y = np.zeros(n_tiles)
 
+dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested = n_tiles)
 
 for i, sample in enumerate(tqdm(dataloader)):
     tile = sample['tile']

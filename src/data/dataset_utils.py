@@ -157,8 +157,9 @@ def TripletDataLoader(img_type, bands=4, batch_size=4, shuffle=True, augment=Tru
     return dataloader
 
 class TileDataset():
-    def __init__(self, type = 'test', data_dir='/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/', transform=None):
+    def __init__(self, type = 'test', data_dir='/home/ubuntu/cs231n_project/cs231n_project/land_cover_representation/', transform=None, num_tiles_requested = -1):
         # tuples of (filename, label)
+        self.num_tiles_requested = num_tiles_requested
         self.tile_dir = data_dir
         metadata = pd.read_csv(os.path.join(data_dir,'metadata.csv'))
         tilenet_metadata = metadata[metadata['split_str']=='test']
@@ -167,7 +168,10 @@ class TileDataset():
         
         
     def __len__(self):
-        return len(self.test_files)
+        if self.num_tiles_requested != -1:
+            return self.num_tiles_requested
+        else:
+            return len(self.test_files)
     
     def __getitem__(self, idx):
         filename = self.test_files[idx]
@@ -187,8 +191,8 @@ class TileDataset():
         
     
 
-def TilesClassificationDataLoader(batch_size=4, num_workers=4):
-    dataset = TileDataset()
+def TilesClassificationDataLoader(batch_size=4, num_workers=4, num_tiles_requested = -1):
+    dataset = TileDataset(num_tiles_requested)
     dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     return dataloader
     
