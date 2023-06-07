@@ -192,7 +192,7 @@ class TileDataset():
     
 
 def TilesClassificationDataLoader(batch_size=4, num_workers=4, num_tiles_requested = -1):
-    dataset = TileDataset(num_tiles_requested)
+    dataset = TileDataset(num_tiles_requested = num_tiles_requested)
     dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     return dataloader
     

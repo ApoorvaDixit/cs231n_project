@@ -16,7 +16,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
-TileNet = make_tilenet_50(in_channels=in_channels, z_dim=z_dim)
+TileNet = make_tilenet_50(in_channels=in_channels, z_dim=z_dim//4)
 if cuda: TileNet.cuda()
 TileNet.train()
 
@@ -47,12 +47,12 @@ print('Begin training.................')
 for epoch in tqdm(range(0, epochs), desc="epoch loop"):
     if epoch == 5:
         # save intermediate model at epoch 5
-        model_fn = os.path.join(model_dir, 'TileNet50_epoch{}.ckpt'.format(epoch))
+        model_fn = os.path.join(model_dir, 'TileNet50_512_epoch{}.ckpt'.format(epoch))
         torch.save(TileNet.state_dict(), model_fn)
         
     if epoch == 10:
         # save intermediate model at epoch 10
-        model_fn = os.path.join(model_dir, 'TileNet50_epoch{}.ckpt'.format(epoch))
+        model_fn = os.path.join(model_dir, 'TileNet50_512_epoch{}.ckpt'.format(epoch))
         torch.save(TileNet.state_dict(), model_fn)
 
     (avg_loss, avg_l_n, avg_l_d, avg_l_nd) = train_triplet_epoch(
@@ -61,5 +61,5 @@ for epoch in tqdm(range(0, epochs), desc="epoch loop"):
     
         
     
-model_fn = os.path.join(model_dir, 'TileNet50_epoch{}.ckpt'.format(epochs))
+model_fn = os.path.join(model_dir, 'TileNet50_512_epoch{}.ckpt'.format(epochs))
 torch.save(TileNet.state_dict(), model_fn)

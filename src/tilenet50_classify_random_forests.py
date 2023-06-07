@@ -4,7 +4,7 @@ import torch
 from time import time
 from torch.autograd import Variable
 from data.dataset_utils import TilesClassificationDataLoader
-from model_architectures.resnets.tilenet import make_tilenet_18
+from model_architectures.resnets.tilenet import make_tilenet_50
 from tqdm import tqdm 
 
 from sklearn.preprocessing import LabelEncoder
@@ -21,7 +21,7 @@ args = parser.parse_args()
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
-tilenet = make_tilenet_18(in_channels=in_channels, z_dim=z_dim)
+tilenet = make_tilenet_50(in_channels=in_channels, z_dim=z_dim)
 if cuda: 
     tilenet = tilenet.cuda()
 
@@ -32,7 +32,7 @@ tilenet.eval()
 
 
 n_tiles = 8000
-X = np.zeros((n_tiles, z_dim))
+X = np.zeros((n_tiles, z_dim*4))
 y = np.zeros(n_tiles)
 
 dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested = n_tiles)
@@ -60,33 +60,28 @@ n_trials = 100
 accs = np.zeros((n_trials,))
 for i in range(n_trials):
     # Splitting data and training RF classifer
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.5)
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)
     rf = RandomForestClassifier()
     rf.fit(X_tr, y_tr)
     accs[i] = rf.score(X_te, y_te)
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
 
-# Result with 10 epochs in tilenet, 27k labeled tiles in random forest classifier test split 0.2
-# Mean accuracy: 0.6767
-# Standard deviation: 0.0060
+# Results with resnet50, 5 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 2048
+# Mean accuracy: 0.6155
+# Standard deviation: 0.0109
 
 
+# Results with resnet50, 10 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 2048
+# Mean accuracy: 0.6236
+# Standard deviation: 0.0106
 
+# Results with resnet50, 15 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 2048
+# Mean accuracy: 0.6238
+# Standard deviation: 0.0113
 
+# Results with resnet50, 5 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 512
 
-# Result with 10 epochs in tilenet, 8k labeled tiles in random forest classifier test split 0.2
-# Mean accuracy: 0.6383
-# Standard deviation: 0.0120
+# Results with resnet50, 10 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 512
 
-# Result with 15 epochs in tilenet, 8k labeled tiles in random forest classifier test split 0.2
-# Mean accuracy: 0.6542
-# Standard deviation: 0.0110
-
-# Result with 10 epochs in tilenet, 8k labeled tiles in random forest classifier test split 0.5
-# Mean accuracy: 0.6226
-# Standard deviation: 0.0065
-
-# Result with 15 epochs in tilenet, 8k labeled tiles in random forest classifier test split 0.5
-# Mean accuracy: 0.6383
-# Standard deviation: 0.0056
+# Results with resnet50, 15 epochs, 8k labeled tiles in random forest classifier test split 0.2, z_dim 512
