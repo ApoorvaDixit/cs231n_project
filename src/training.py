@@ -1,5 +1,6 @@
 import numpy as np
 from time import time
+import torch
 from torch.autograd import Variable
 from data.dataset_utils import TripletDataLoader
 from tqdm import tqdm 
@@ -15,7 +16,7 @@ def prep_triplets(triplets, cuda):
     return (a, n, d)
 
 def train_triplet_epoch(model, cuda, dataloader, optimizer, epoch, margin=1,
-    l2=0, print_every=100, t0=None):
+    l2=0, print_every=100, t0=None, scheduler=None, max_grad_norm=None):
     """
     Trains a model for one epoch using the provided dataloader.
     """
@@ -29,8 +30,18 @@ def train_triplet_epoch(model, cuda, dataloader, optimizer, epoch, margin=1,
         p, n, d = prep_triplets(triplets, cuda)
         optimizer.zero_grad()
         loss, l_n, l_d, l_nd = model.loss(p, n, d, margin=margin, l2=l2)
+        if torch.isnan(loss) or torch.isinf(loss):
+            for param_group in optimizer.param_groups:
+                learning_rate = param_group['lr']
+                print("Learning rate:", learning_rate)
+            print(f"Stopping at epoch {epoch} id {idx} because of nan loss")
+            raise 
         loss.backward()
+        if max_grad_norm:
+            torch.nn.utils.clip_grad_norm_(net.parameters(), max_grad_norm)
         optimizer.step()
+        if scheduler:
+            scheduler.step()
         sum_loss += loss.data
         sum_l_n += l_n.data
         sum_l_d += l_d.data
