@@ -150,13 +150,13 @@ class VisionTransformer(nn.Module):
         self,
         image_size: int = 100,
         patch_size: int = 10,
-        num_layers: int = 12,
+        num_layers: int = 6,
         num_heads: int = 12,
         hidden_dim: int = 768,
-        mlp_dim: int = 512,
+        mlp_dim: int = 3072,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
-        num_classes: int = 1000,
+        num_classes: int = 512,
         representation_size: Optional[int] = None,
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
         conv_stem_configs: Optional[List[ConvStemConfig]] = None,
@@ -206,7 +206,7 @@ class VisionTransformer(nn.Module):
 
         # Add a class token
         self.class_token = nn.Parameter(torch.zeros(1, 1, hidden_dim))
-        seq_length += 1
+        # seq_length += 1
 
         self.encoder = Encoder(
             seq_length,
@@ -250,7 +250,7 @@ class VisionTransformer(nn.Module):
             nn.init.zeros_(self.heads.pre_logits.bias)
 
         if isinstance(self.heads.head, nn.Linear):
-            nn.init.zeros_(self.heads.head.weight)
+            nn.init.xavier_uniform_(self.heads.head.weight)
             nn.init.zeros_(self.heads.head.bias)
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
@@ -279,20 +279,27 @@ class VisionTransformer(nn.Module):
         x = self._process_input(x)
         n = x.shape[0]
 
+        # print("X, n: ", x, n)
+
         # Expand the class token to the full batch
-        batch_class_token = self.class_token.expand(n, -1, -1)
-        x = torch.cat([batch_class_token, x], dim=1)
+        # batch_class_token = self.class_token.expand(n, -1, -1)
+        # x = torch.cat([batch_class_token, x], dim=1)
+
+        # print('batch class: ', batch_class_token)
 
         x = self.encoder(x)
 
         # Classifier "token" as used by standard language architectures
-        x = x[:, 0]
+        # x = x[:, 0]
 
         x = self.heads(x)
 
         return x
 
     def triplet_loss(self, z_p, z_n, z_d, margin=0.1, l2_reg=0):
+        
+        # print(z_p, z_n, z_d)
+
         l_n = torch.sqrt(((z_p - z_n) ** 2).sum(dim=1))
         l_d = - torch.sqrt(((z_p - z_d) ** 2).sum(dim=1))
         l_nd = l_n + l_d
@@ -303,6 +310,8 @@ class VisionTransformer(nn.Module):
         loss = torch.mean(loss)
         if l2_reg != 0:
             loss += l2_reg * (torch.norm(z_p) + torch.norm(z_n) + torch.norm(z_d))
+        
+        # print('trpilet loss: ', loss, l_n, l_d, l_nd)
         return loss, l_n, l_d, l_nd
 
     def loss(self, patch, neighbor, distant, margin=0.1, l2=0):
@@ -323,7 +332,7 @@ def make_ViT(image_size = 50, z_dim=512):
     Returns a TileNet for unsupervised Tile2Vec with the specified number of
     input channels and feature dimension.
     """
-    return VisionTransformer(image_size=image_size, mlp_dim=z_dim)
+    return VisionTransformer(image_size=image_size, num_classes=z_dim)
 
 
 
