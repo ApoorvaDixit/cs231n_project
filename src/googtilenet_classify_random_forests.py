@@ -61,6 +61,6 @@ for i in range(n_trials):
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
 
-# Results with googlenetv1, 10 epochs + aux outputs disabled, 27k labeled tiles in random forest classifier
+# Results with googlenetv1, 10 epochs + aux outputs disabled, 27k labeled tiles in random forest classifier test split 0.2
 # Mean accuracy: 0.6580
 # Standard deviation: 0.0058

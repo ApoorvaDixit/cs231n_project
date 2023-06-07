@@ -7,7 +7,7 @@ from time import time
 from tqdm import tqdm 
 
 from data.dataset_utils import TripletDataLoader
-from model_architectures.resnets.tilenet_18 import make_tilenet
+from model_architectures.resnets.tilenet import make_tilenet_18
 from training import train_triplet_epoch
 
 img_type = 'naip'
@@ -16,7 +16,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
-TileNet = make_tilenet(in_channels=in_channels, z_dim=z_dim)
+TileNet = make_tilenet_18(in_channels=in_channels, z_dim=z_dim)
 if cuda: TileNet.cuda()
 TileNet.train()
 
@@ -31,7 +31,7 @@ dataloader = TripletDataLoader(img_type, batch_size=64)
 
 print('Dataset set up.')
 
-epochs = 10
+epochs = 15
 margin = 10
 l2 = 0.01
 print_every = 10000

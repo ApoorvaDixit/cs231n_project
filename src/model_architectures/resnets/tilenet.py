@@ -10,12 +10,11 @@ from torch.autograd import Variable
 
 
 class ResidualBlock(nn.Module):
+    # There is no expansion for ResNet18
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, no_relu=False,
-        activation='relu'):
-        super(BasicBlock, self).__init__()
-        self.no_relu = no_relu
+    def __init__(self, in_planes, planes, stride=1, activation='relu'):
+        super(ResidualBlock, self).__init__()
         self.activation = activation
 
         # Choose activation function
@@ -26,13 +25,9 @@ class ResidualBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
+        
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-
-        # no_relu layer
-        self.conv3 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=True)
-        self.bn3 = nn.BatchNorm2d(planes)
-        # no_relu layer
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion*planes:
@@ -42,21 +37,59 @@ class ResidualBlock(nn.Module):
             )
 
     def forward(self, x):
-        # out = F.relu(self.bn1(self.conv1(x)))
         out = self.activation_fn(self.bn1(self.conv1(x)))
-        if self.no_relu:
-            out = self.bn3(self.conv3(out))
-            return out
-        else:
-            out = self.bn2(self.conv2(out))
-            out += self.shortcut(x)
-            # out = F.relu(out)
-            out = self.activation_fn(out)
-            return out
+
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = self.activation_fn(out)
+        return out
+        
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        
+        
+class Bottleneck(nn.Module):
+    # We use expansion in bottleneck dimensions to increase input size after reducing it with 1x1 kernels inside the Bottleneck
+    expansion = 4
+    
+    def __init__(self, in_planes, planes, stride=1, activation='relu'):
+        super(Bottleneck, self).__init__()
+        self.activation = activation
+        
+        # Choose activation function
+        if self.activation == 'relu':
+            self.activation_fn = F.relu
+        elif self.activation == 'leaky_relu':
+            self.activation_fn = F.leaky_relu
+            
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        
+        self.conv3 = nn.Conv2d(planes, self.expansion*planes, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn3 = nn.BatchNorm2d(self.expansion*planes)
+        
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion*planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion*planes)
+            )
+            
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+
 
 
 class TileNet(nn.Module):
-    def __init__(self, num_blocks, in_channels=4, z_dim=512):
+    def __init__(self, block,  num_blocks, in_channels=4, z_dim=512):
         """
         Input:
             num_blocks: num_blocks[i] represents how many Residual blocks will be concatenated in sequence within layer i.
@@ -72,20 +105,19 @@ class TileNet(nn.Module):
         self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=1,
             padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(64, num_blocks[0], stride=1)
+        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         # Stride is applied in first convolution of first block only.
-        self.layer2 = self._make_layer(128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(512, num_blocks[3], stride=2)
-        self.layer5 = self._make_layer(self.z_dim, num_blocks[4],
-            stride=2)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+        self.layer5 = self._make_layer(block, self.z_dim, num_blocks[4], stride=2)
 
-    def _make_layer(self, planes, num_blocks, stride, no_relu=False):
+    def _make_layer(self, block, planes, num_blocks, stride, no_relu=False):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(ResidualBlock(self.in_planes, planes, stride=stride))
-            self.in_planes = planes
+            layers.append(block(self.in_planes, planes, stride=stride))
+            self.in_planes = planes*block.expansion
         return nn.Sequential(*layers)
 
     def encode(self, x):
@@ -131,14 +163,17 @@ class TileNet(nn.Module):
 
 def make_tilenet_18(in_channels=4, z_dim=512):
     """
-    Returns a TileNet for unsupervised Tile2Vec with the specified number of
+    Returns a TileNet of 18 layers for unsupervised Tile2Vec with the specified number of
     input channels and feature dimension.
     """
     num_blocks = [2, 2, 2, 2, 2]
-    return TileNet(num_blocks, in_channels=in_channels, z_dim=z_dim)
+    return TileNet(ResidualBlock, num_blocks, in_channels=in_channels, z_dim=z_dim)
 
 
-def make_tilenet_50():
-    # 1. change block type to parameter
-    # 2. Define residual block
-    # 3. Introduce expansion parameter
+def make_tilenet_50(in_channels=4, z_dim=512):
+    """
+    Returns a TileNet of 50 layers for unsupervised Tile2Vec with the specified number of
+    input channels and feature dimension.
+    """
+    num_blocks = [2, 3, 4, 6, 3]
+    return TileNet(Bottleneck, num_blocks, in_channels=in_channels, z_dim=z_dim)
