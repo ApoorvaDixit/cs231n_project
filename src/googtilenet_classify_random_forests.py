@@ -5,6 +5,7 @@ from time import time
 from torch.autograd import Variable
 from data.dataset_utils import TilesClassificationDataLoader
 from model_architectures.googlenet.googtilenet import make_googtilenet
+from utils import get_timestr
 from tqdm import tqdm 
 
 from sklearn.preprocessing import LabelEncoder
@@ -38,6 +39,7 @@ y = np.zeros(n_tiles)
 
 dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested = n_tiles)
 
+print(f'Begin at {get_timestr()}................')
 for i, sample in enumerate(tqdm(dataloader)):
     tile = sample['tile']
     tile = torch.squeeze(tile, dim=0)
@@ -67,6 +69,12 @@ for i in range(n_trials):
     print(f'Trial {i} has accuracy {accs[i]}')
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
+
+print(f'End at {get_timestr()}................')
+
+# Results with googlenetv1, 5 epochs + aux outputs disabled, 27k labeled tiles in random forest classifier test split 0.2
+# Mean accuracy: 0.6261
+# Standard deviation: 0.0056
 
 # Results with googlenetv1, 10 epochs + aux outputs disabled, 27k labeled tiles in random forest classifier test split 0.2
 # Mean accuracy: 0.6580
