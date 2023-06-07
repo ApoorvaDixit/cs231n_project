@@ -255,7 +255,6 @@ class GoogTiLeNet(nn.Module):
         self,
         in_channels: int = 4, 
         z_dim: int = 512,
-        init_weights = True,
         blocks = [BasicConv2d, InceptionA, InceptionB, InceptionC, InceptionD, InceptionE, InceptionAux],
         dropout: float = 0.5
         
@@ -383,7 +382,7 @@ class GoogTiLeNet(nn.Module):
         if l2_reg != 0:
             l2_loss += l2_reg * (torch.norm(z_p) + torch.norm(z_n) + torch.norm(z_d))
             loss += l2_loss
-        return loss, l_n, l_d, l_nd, l2_loss
+        return loss, l_n, l_d, l_nd
 
     def loss(self, patch, neighbor, distant, margin=0.1, l2=0):
         """
@@ -398,15 +397,15 @@ class GoogTiLeNet(nn.Module):
         output_patch, aux_patch = self.forward(patch)
         output_neighbour, aux_neighbour = self.forward(neighbor)
         output_distant, aux_distant = self.forward(distant)
-        output_loss, output_l_n, output_l_d, output_l_nd, l2_loss = self.triplet_loss(output_patch, output_neighbour, output_distant, margin=margin, l2_reg=l2)
-        aux_loss, aux_l_n, aux_l_d, aux_l_nd, _ = self.triplet_loss(aux_patch, aux_neighbour, aux_distant, margin=margin, l2_reg=l2)
+        output_loss, output_l_n, output_l_d, output_l_nd = self.triplet_loss(output_patch, output_neighbour, output_distant, margin=margin, l2_reg=l2)
+        aux_loss, aux_l_n, aux_l_d, aux_l_nd = self.triplet_loss(aux_patch, aux_neighbour, aux_distant, margin=margin, l2_reg=l2)
         
         loss = output_wt*output_loss + aux_wt*aux_loss
         l_n = output_wt*output_l_n + aux_wt*aux_l_n
         l_d = output_wt*output_l_d + aux_wt*aux_l_d
         l_nd = output_wt*output_l_nd + aux_wt*aux_l_nd
         
-        return loss, l_n, l_d, l_nd, l2_loss
+        return loss, l_n, l_d, l_nd
 
 
 def make_googtilenet(in_channels=4, z_dim=512):
