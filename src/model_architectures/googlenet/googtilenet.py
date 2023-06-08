@@ -252,6 +252,22 @@ class GoogTiLeNet(nn.Module):
         if l2_reg != 0:
             loss += l2_reg * (torch.norm(z_p) + torch.norm(z_n) + torch.norm(z_d))
         return loss, l_n, l_d, l_nd
+    
+    def cosine_distance(self, z_i, z_j):
+        return (z_i * z_j).sum(dim=1)/(torch.linalg.norm(z_i, axis=1)*torch.linalg.norm(z_j, axis=1))
+    
+    def triplet_loss_cosine_similarity(self, z_p, z_n, z_d, margin=0.1, l2_reg=0):
+        l_n = self.cosine_distance(z_p, z_n)
+        l_d = -self.cosine_distance(z_p, z_d)
+        l_nd = l_n + l_d
+        loss = F.relu(l_n + l_d + margin)
+        l_n = torch.mean(l_n)
+        l_d = torch.mean(l_d)
+        l_nd = torch.mean(l_n + l_d)
+        loss = torch.mean(loss)
+        if l2_reg != 0:
+            loss += l2_reg * (torch.norm(z_p) + torch.norm(z_n) + torch.norm(z_d))
+        return loss, l_n, l_d, l_nd
 
     def loss(self, patch, neighbor, distant, margin=0.1, l2=0):
         """
@@ -261,16 +277,23 @@ class GoogTiLeNet(nn.Module):
         neighbor.to(self.device)
         distant.to(self.device)
         
+        # apoorva's mod
+        # l2 = 0.1
+        # margin=0.5
+        # apoorva's mod
+        
+        
         output_wt = 1
-        aux2_wt = 0#.3
-        aux1_wt = 0#.3
+        aux2_wt = 0
+        aux1_wt = 0
         output_patch, a2_patch, a1_patch = self.forward(patch)
         output_neighbour, a2_neighbour, a1_neighbour = self.forward(neighbor)
         output_distant, a2_distant, a1_distant = self.forward(distant)
+         # apoorva's mod
         output_loss, output_l_n, output_l_d, output_l_nd = self.triplet_loss(output_patch, output_neighbour, output_distant, margin=margin, l2_reg=l2)
         aux2_loss, aux2_l_n, aux2_l_d, aux2_l_nd = self.triplet_loss(a2_patch, a2_neighbour, a2_distant, margin=margin, l2_reg=l2)
         aux1_loss, aux1_l_n, aux1_l_d, aux1_l_nd = self.triplet_loss(a1_patch, a1_neighbour, a1_distant, margin=margin, l2_reg=l2)
-        
+         # apoorva's mod
         loss = output_wt*output_loss + aux2_wt*aux2_loss + aux1_wt*aux1_loss
         l_n = output_wt*output_l_n + aux2_wt*aux2_l_n + aux1_wt*aux1_l_n
         l_d = output_wt*output_l_d + aux2_wt*aux2_l_d + aux1_wt*aux1_l_d

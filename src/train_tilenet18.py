@@ -31,7 +31,7 @@ dataloader = TripletDataLoader(img_type, batch_size=64)
 
 print('Dataset set up.')
 
-epochs = 15
+epochs = 5
 margin = 10
 l2 = 0.01
 print_every = 10000
