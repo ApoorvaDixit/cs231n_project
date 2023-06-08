@@ -21,14 +21,19 @@ class TwoLayerFC(nn.Module):
         super().__init__()
         self.fc1 = nn.Linear(input_size, 1024)
         self.bn1 = nn.BatchNorm1d(1024)
-        self.fc2 = nn.Linear(1024, 256)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.fc3 = nn.Linear(256, num_classes)
+        self.fc2 = nn.Linear(1024, 512)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.fc3 = nn.Linear(512, num_classes)
          
-        nn.init.kaiming_normal_(self.fc1.weight)
-        nn.init.kaiming_normal_(self.fc2.weight)
-        nn.init.kaiming_normal_(self.fc3.weight)
+        nn.init.xavier_normal_(self.fc1.weight)
+        nn.init.xavier_normal_(self.fc2.weight)
+        nn.init.xavier_normal_(self.fc3.weight)
+
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)
          
+
     def forward(self, x):
         x = self.fc1(x)
         x = self.bn1(x)
