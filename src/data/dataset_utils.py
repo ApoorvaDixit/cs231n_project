@@ -195,4 +195,8 @@ def TilesClassificationDataLoader(batch_size=4, num_workers=4, num_tiles_request
     dataset = TileDataset(num_tiles_requested = num_tiles_requested)
     dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     return dataloader
-    
+
+
+def get_label(id):
+    labels = pd.read_csv('src/data/labels.csv')
+    return labels.iloc[id]['land_cover']
