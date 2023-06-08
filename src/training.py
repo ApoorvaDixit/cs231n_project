@@ -41,7 +41,7 @@ def train_triplet_epoch(model, cuda, dataloader, optimizer, epoch, margin=1,
             torch.nn.utils.clip_grad_norm_(net.parameters(), max_grad_norm)
         optimizer.step()
         if scheduler:
-            scheduler.step()
+            scheduler.step(loss)
         sum_loss += loss.data
         sum_l_n += l_n.data
         sum_l_d += l_d.data

@@ -3,6 +3,10 @@ import time
 import pytz
 from datetime import datetime
 import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+import numpy as np
+from collections import Counter
+
 import torch
 
 from data.dataset_utils import get_label
@@ -32,6 +36,27 @@ def viz(tile):
     # Display the plot
     plt.tight_layout()
     plt.show()
+
+def viz_tsne(X_tr, y_tr, only_top=10):
+    tsne = TSNE(n_components=2, random_state=42)
+    embeddings = tsne.fit_transform(X_tr)
+    
+    labels_to_plot = np.unique(y_tr)
+    if only_top:
+        sorted_dict = dict(sorted(Counter(y_tr).items(), key=lambda x: x[1], reverse=True))
+        labels_to_plot = [x[0] for x in sorted_dict.items()][:only_top]
+
+    # Plot the t-SNE embeddings with different colors for different labels
+    plt.figure(figsize=(8, 8))
+    for label in labels_to_plot:
+        indices = y_tr == label
+        plt.scatter(embeddings[indices, 0], embeddings[indices, 1], label=get_label(label))
+    plt.legend()
+    plt.xlabel('t-SNE Dimension 1')
+    plt.ylabel('t-SNE Dimension 2')
+    plt.title('t-SNE Visualization of Clustering')
+    plt.show()
+
 
 def get_timestr():
     t0 = time.time()

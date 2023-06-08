@@ -298,8 +298,9 @@ class GoogTiLeNet(nn.Module):
         self.fc = nn.Linear(2048, z_dim)
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                stddev = float(m.stddev) if hasattr(m, "stddev") else 0.1  # type: ignore
-                torch.nn.init.trunc_normal_(m.weight, mean=0.0, std=stddev, a=-2, b=2)
+                # stddev = float(m.stddev) if hasattr(m, "stddev") else 0.1  # type: ignore
+                # torch.nn.init.trunc_normal_(m.weight, mean=0.0, std=stddev, a=-2, b=2)
+                nn.init.xavier_uniform_(m.weight)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -384,7 +385,7 @@ class GoogTiLeNet(nn.Module):
             loss += l2_loss
         return loss, l_n, l_d, l_nd
 
-    def loss(self, patch, neighbor, distant, margin=0.1, l2=0):
+    def loss(self, patch, neighbor, distant, margin=0.1, l2=0, verbose=False):
         """
         Computes loss for each batch.
         """
@@ -393,12 +394,18 @@ class GoogTiLeNet(nn.Module):
         distant.to(self.device)
         
         output_wt = 1
-        aux_wt = 0#.4
+        aux_wt = 0.4
         output_patch, aux_patch = self.forward(patch)
         output_neighbour, aux_neighbour = self.forward(neighbor)
         output_distant, aux_distant = self.forward(distant)
         output_loss, output_l_n, output_l_d, output_l_nd = self.triplet_loss(output_patch, output_neighbour, output_distant, margin=margin, l2_reg=l2)
         aux_loss, aux_l_n, aux_l_d, aux_l_nd = self.triplet_loss(aux_patch, aux_neighbour, aux_distant, margin=margin, l2_reg=l2)
+        
+        if verbose:
+            print('output_patch, aux_patch:', output_patch, aux_patch)
+            print('output_neighbour, aux_neighbour:', output_neighbour, aux_neighbour)
+            print('output_distant, aux_distant:', output_distant, aux_distant)
+            print('output_loss, output_l_n, output_l_d, output_l_nd: ', output_loss, output_l_n, output_l_d, output_l_nd)
         
         loss = output_wt*output_loss + aux_wt*aux_loss
         l_n = output_wt*output_l_n + aux_wt*aux_l_n
