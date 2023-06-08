@@ -1,6 +1,20 @@
 import torch
+import os
 from tqdm import tqdm 
 from data.dataset_utils import TilesClassificationDataLoader
+from model_architectures.resnets.tilenet import make_tilenet_18
+from torch.autograd import Variable
+from sklearn.model_selection import train_test_split
+import numpy as np
+import torch.nn.functional as F
+import torch.nn as nn
+import torch.optim as optim
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-cp", "--checkpoint", help="Relative path to checkpoint file. For example, models/GoogTiLeNet_epoch10.ckpt")
+
+args = parser.parse_args()
 
 class TwoLayerFC(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes):
@@ -13,7 +27,11 @@ class TwoLayerFC(nn.Module):
         nn.init.kaiming_normal_(self.fc2.weight)
          
     def forward(self, x):
-        return self.fc2(F.relu(self.bn(self.fc1(x))))
+        x = self.fc1(x)
+        x = self.bn(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        return x
         
 img_type = 'naip'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -21,25 +39,31 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
-TileNet = make_tilenet_50(in_channels=in_channels, z_dim=z_dim)
-if cuda: TileNet.cuda()
-TileNet.train()
+tilenet = make_tilenet_18(in_channels=in_channels, z_dim=z_dim)
+if cuda: tilenet.cuda()
+
+checkpoint = torch.load(args.checkpoint)
+tilenet.load_state_dict(checkpoint)
+tilenet.eval()
 
 print('TileNet50 set up complete.')
 
 lr = 1e-3
-optimizer = optim.Adam(TileNet.parameters(), lr=lr, betas=(0.5, 0.999))
+optimizer = optim.Adam(tilenet.parameters(), lr=lr, betas=(0.5, 0.999))
 
 print('Optimizer set up complete.')
 
 dataloader = TilesClassificationDataLoader(batch_size=1)
 
-n_tiles = 27972
+n_tiles = 8000
 X = np.zeros((n_tiles, z_dim))
 y = np.zeros(n_tiles)
 
 
 for i, sample in enumerate(tqdm(dataloader)):
+    if i == n_tiles:
+        break
+    
     tile = sample['tile']
     tile = torch.squeeze(tile, dim=0)
     label = sample['label']
@@ -55,22 +79,26 @@ for i, sample in enumerate(tqdm(dataloader)):
     X[i, :] = z
     
 
-num_classes=np.unique(y).size()
+num_classes=np.unique(y).size
 
 # 60-20-20 split
 X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)
-X_train, X_val, y_train, y_val  = train_test_split(X_train, y_train, test_size=0.25) # 0.25x0.8 = 0.2
+X_tr, X_val, y_tr, y_val  = train_test_split(X_tr, y_tr, test_size=0.25) # 0.25x0.8 = 0.2
 
 num_epochs = 1
-train_size = y_train.size()
+train_size = y_tr.size
 hidden_dim = 128
 
+print(z_dim)
+print(num_classes)
 model = TwoLayerFC(z_dim, hidden_dim, num_classes)
 
 for e in range(num_epochs):
     for i in range(train_size//100):
-        x = X_tr[i:i+100, :]
-        y = y_tr[i:i+100]
+        x = torch.tensor(X_tr[i:i+100, :])
+        print(x.shape)
+        y = torch.tensor(y_tr[i:i+100])
+        print(y.shape)
         scores = model(x)
         
         loss = F.cross_entropy(scores, y)
@@ -82,3 +110,20 @@ for e in range(num_epochs):
                 print('Iteration %d, loss = %.4f' % (i, loss.item()))
                 
                 
+# evaluate
+print("Checking accuracy.")
+num_correct = 0
+num_samples = 0
+model.eval()
+
+with torch.no_grad():
+    for i in range(y_train.size//100):
+        x = torch.tensor(X_te[i:i+100, :])
+        y = torch.tensor(y_te[i:i+100])
+        scores = model(x)
+        _, preds = scores.max(1)
+        num_correct += (preds == y).sum()
+        num_samples += preds.size(0)
+    acc = float(num_correct) / num_samples
+    print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+        
