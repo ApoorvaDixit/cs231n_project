@@ -24,14 +24,18 @@ class TwoLayerFC(nn.Module):
         self.fc2 = nn.Linear(1024, 512)
         self.bn2 = nn.BatchNorm1d(512)
         self.fc3 = nn.Linear(512, num_classes)
+        # self.bn3 = nn.BatchNorm1d(128)
+        # self.fc4 = nn.Linear(128, num_classes)
+        # self.bn3 = nn.BatchNorm1d(256)
+        # self.fc4 = nn.Linear(256, 128)
+        # self.bn4 = nn.BatchNorm1d(128)
+        # self.fc5 = nn.Linear(128, num_classes)
          
-        nn.init.xavier_normal_(self.fc1.weight)
-        nn.init.xavier_normal_(self.fc2.weight)
-        nn.init.xavier_normal_(self.fc3.weight)
-
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
+        nn.init.kaiming_normal_(self.fc1.weight)
+        nn.init.kaiming_normal_(self.fc2.weight)
+        nn.init.kaiming_normal_(self.fc3.weight)
+        # nn.init.kaiming_normal_(self.fc4.weight)
+        # nn.init.xavier_normal_(self.fc5.weight)
          
 
     def forward(self, x):
@@ -42,6 +46,12 @@ class TwoLayerFC(nn.Module):
         x = self.bn2(x)
         x = F.relu(x)
         x = self.fc3(x)
+        # x = self.bn3(x)
+        # x = F.relu(x)
+        # x = self.fc4(x)
+        # x = self.bn4(x)
+        # x = F.relu(x)
+        # x = self.fc5(x)
         return x
         
 img_type = 'naip'
@@ -58,11 +68,6 @@ tilenet.load_state_dict(checkpoint)
 tilenet.eval()
 
 print('TileNet50 set up complete.')
-
-lr = 1e-3
-optimizer = optim.Adam(tilenet.parameters(), lr=lr, betas=(0.5, 0.999))
-
-print('Optimizer set up complete.')
 
 dataloader = TilesClassificationDataLoader(batch_size=1)
 
@@ -105,6 +110,9 @@ print(z_dim)
 print(num_classes)
 model = TwoLayerFC(z_dim, hidden_dim, num_classes)
 model.train()
+
+lr = 1e-3
+optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 
 for e in range(num_epochs):
     for i in range(train_size//10):
