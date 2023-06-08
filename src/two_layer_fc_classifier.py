@@ -95,19 +95,14 @@ model = TwoLayerFC(z_dim, hidden_dim, num_classes)
 
 for e in range(num_epochs):
     for i in range(train_size//100):
-        x = torch.tensor(X_tr[i:i+100, :])
-        print(x.shape)
+        print(i)
+        x = torch.tensor(X_tr[i:i+100, :]).to(dtype=torch.float32)
         y = torch.tensor(y_tr[i:i+100])
-        print(y.shape)
         scores = model(x)
-        
         loss = F.cross_entropy(scores, y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        
-        if i % print_every == 0:
-                print('Iteration %d, loss = %.4f' % (i, loss.item()))
                 
                 
 # evaluate
@@ -118,8 +113,8 @@ model.eval()
 
 with torch.no_grad():
     for i in range(y_train.size//100):
-        x = torch.tensor(X_te[i:i+100, :])
-        y = torch.tensor(y_te[i:i+100])
+        x = torch.tensor(X_te[i:i+100, :]).to(dtype=torch.float32)
+        y = torch.tensor(y_te[i:i+100]).to(dtype=torch.long)
         scores = model(x)
         _, preds = scores.max(1)
         num_correct += (preds == y).sum()
