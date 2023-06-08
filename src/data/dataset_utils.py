@@ -200,3 +200,7 @@ def TilesClassificationDataLoader(batch_size=4, num_workers=4, num_tiles_request
 def get_label(id):
     labels = pd.read_csv('src/data/labels.csv')
     return labels.iloc[id]['land_cover']
+
+def get_label_id(label_str):
+    labels = pd.read_csv('src/data/labels.csv')
+    return labels[labels['land_cover']==label_str]['y'].values[0]
