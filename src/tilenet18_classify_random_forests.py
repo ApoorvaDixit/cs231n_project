@@ -1,10 +1,9 @@
 import numpy as np
-import os
 import torch
-from time import time
 from torch.autograd import Variable
 from data.dataset_utils import TilesClassificationDataLoader
 from model_architectures.resnets.tilenet import make_tilenet_18
+from utils import get_timestr
 from tqdm import tqdm 
 
 from sklearn.preprocessing import LabelEncoder
@@ -32,12 +31,13 @@ tilenet.eval()
 
 
 n_tiles = 8000
+test_size = 0.2
 X = np.zeros((n_tiles, z_dim))
 y = np.zeros(n_tiles)
 
 dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested = n_tiles)
 
-
+print(f'Begin at {get_timestr()}, with test_size {test_size}................')
 for i, sample in enumerate(tqdm(dataloader)):
     tile = sample['tile']
     tile = torch.squeeze(tile, dim=0)
@@ -53,19 +53,23 @@ for i, sample in enumerate(tqdm(dataloader)):
     z.squeeze(0)
     X[i, :] = z
 
+print(f'{get_timestr()} | finished embedding')
 y = LabelEncoder().fit_transform(y)
+print(f'{get_timestr()} | finished encoding labels')
 # print(set(y))
 
 n_trials = 100
 accs = np.zeros((n_trials,))
 for i in range(n_trials):
     # Splitting data and training RF classifer
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.5)
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size)
     rf = RandomForestClassifier()
     rf.fit(X_tr, y_tr)
     accs[i] = rf.score(X_te, y_te)
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
+
+print(f'End at {get_timestr()}................')
 
 # Result with 10 epochs in tilenet, 27k labeled tiles in random forest classifier test split 0.2
 # Mean accuracy: 0.6767

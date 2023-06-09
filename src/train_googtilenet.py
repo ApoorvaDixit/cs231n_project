@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from data.dataset_utils import TripletDataLoader
 from model_architectures.googlenet.googtilenet import make_googtilenet
+# model_name = 'googtilenet_v1'
 # model_name = 'GoogTiLeNet_xav'
 # from model_architectures.googlenet.googtilenet_v3 import make_googtilenet
 # model_name = 'GoogTiLeNet_v3'
@@ -56,7 +57,7 @@ dataloader = TripletDataLoader(img_type, batch_size=64)
 
 print('Dataset set up.')
 
-epochs = 15
+epochs = 50
 epoch_start = 0
 margin = 10
 l2 = 0.01
@@ -70,12 +71,13 @@ if not os.path.exists(model_dir): os.makedirs(model_dir)
 t0 = time.time()
 print(f'Begin training at {get_timestr()}................')
 for epoch in tqdm(range(epoch_start, epochs), desc="epoch loop"):
+    if epoch > 0 and epoch % 5 == 0:
+        model_fn = os.path.join(model_dir, f'{model_name}_epoch{epoch+1}_cosine.ckpt')
+        torch.save(net.state_dict(), model_fn)
+        
     (avg_loss, avg_l_n, avg_l_d, avg_l_nd) = train_triplet_epoch(
         net, cuda, dataloader, optimizer, epoch+1, margin=margin, l2=l2,
         print_every=print_every, t0=t0, max_grad_norm=max_grad_norm, scheduler=scheduler)
-    
-    model_fn = os.path.join(model_dir, f'{model_name}_epoch{epoch+1}_cosine.ckpt')
-    torch.save(net.state_dict(), model_fn)
 
 print(f'Finished training at {get_timestr()}................')
 

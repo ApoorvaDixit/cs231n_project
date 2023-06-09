@@ -2,6 +2,8 @@ import torch
 import os
 from tqdm import tqdm 
 from data.dataset_utils import TilesClassificationDataLoader
+from model_architectures.googlenet.googtilenet import make_googtilenet
+
 from model_architectures.resnets.tilenet import make_tilenet_18
 from torch.autograd import Variable
 from sklearn.model_selection import train_test_split
@@ -19,19 +21,12 @@ args = parser.parse_args()
 class TwoLayerFC(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, 1024)
-        self.bn1 = nn.BatchNorm1d(1024)
-        self.fc2 = nn.Linear(1024, 512)
-        self.bn2 = nn.BatchNorm1d(512)
-        self.fc3 = nn.Linear(512, num_classes)
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.bn1 = nn.BatchNorm1d(hidden_size)
+        self.fc2 = nn.Linear(hidden_size, num_classes)
          
-        nn.init.xavier_normal_(self.fc1.weight)
-        nn.init.xavier_normal_(self.fc2.weight)
-        nn.init.xavier_normal_(self.fc3.weight)
-
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
+        nn.init.kaiming_normal_(self.fc1.weight)
+        nn.init.kaiming_normal_(self.fc2.weight)
          
 
     def forward(self, x):
@@ -39,18 +34,28 @@ class TwoLayerFC(nn.Module):
         x = self.bn1(x)
         x = F.relu(x)
         x = self.fc2(x)
-        x = self.bn2(x)
-        x = F.relu(x)
-        x = self.fc3(x)
         return x
         
+        
+def check_accuracy(model, X, Y):
+    with torch.no_grad():
+        for i in range(Y.size//10):
+            x = torch.tensor(X[i*10:(i+1)*10, :]).to(dtype=torch.float32)
+            y = torch.tensor(Y[i*10:(i+1)*10]).type(torch.LongTensor)
+            scores = model(x)
+            _, preds = scores.max(1)
+            num_correct += (preds == y).sum()
+            num_samples += preds.size(0)
+        return float(num_correct) / num_samples
+    
+
 img_type = 'naip'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
-tilenet = make_tilenet_18(in_channels=in_channels, z_dim=z_dim)
+tilenet = make_googtilenet(in_channels=in_channels, z_dim=z_dim)
 if cuda: tilenet.cuda()
 
 checkpoint = torch.load(args.checkpoint)
@@ -58,11 +63,6 @@ tilenet.load_state_dict(checkpoint)
 tilenet.eval()
 
 print('TileNet50 set up complete.')
-
-lr = 1e-3
-optimizer = optim.Adam(tilenet.parameters(), lr=lr, betas=(0.5, 0.999))
-
-print('Optimizer set up complete.')
 
 dataloader = TilesClassificationDataLoader(batch_size=1)
 
@@ -106,6 +106,9 @@ print(num_classes)
 model = TwoLayerFC(z_dim, hidden_dim, num_classes)
 model.train()
 
+lr = 1e-3
+optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+
 for e in range(num_epochs):
     for i in range(train_size//10):
         x = torch.tensor(X_tr[i*10:(i+1)*10, :]).to(dtype=torch.float32)
@@ -123,16 +126,8 @@ num_correct = 0
 num_samples = 0
 model.eval()
 
-with torch.no_grad():
-    for i in range(y_te.size//10):
-        x = torch.tensor(X_te[i*10:(i+1)*10, :]).to(dtype=torch.float32)
-        y = torch.tensor(y_te[i*10:(i+1)*10]).type(torch.LongTensor)
-        scores = model(x)
-        _, preds = scores.max(1)
-        print(y)
-        print(preds)
-        num_correct += (preds == y).sum()
-        num_samples += preds.size(0)
-    acc = float(num_correct) / num_samples
-    print('Got %d / %d correct (%.2f)' % (num_correct, num_samples, 100 * acc))
+
+    
+
+
         
