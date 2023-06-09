@@ -19,18 +19,39 @@ args = parser.parse_args()
 class TwoLayerFC(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.bn = nn.BatchNorm1d(hidden_size)
-        self.fc2 = nn.Linear(hidden_size, num_classes)
+        self.fc1 = nn.Linear(input_size, 1024)
+        self.bn1 = nn.BatchNorm1d(1024)
+        self.fc2 = nn.Linear(1024, 512)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.fc3 = nn.Linear(512, num_classes)
+        # self.bn3 = nn.BatchNorm1d(128)
+        # self.fc4 = nn.Linear(128, num_classes)
+        # self.bn3 = nn.BatchNorm1d(256)
+        # self.fc4 = nn.Linear(256, 128)
+        # self.bn4 = nn.BatchNorm1d(128)
+        # self.fc5 = nn.Linear(128, num_classes)
          
         nn.init.kaiming_normal_(self.fc1.weight)
         nn.init.kaiming_normal_(self.fc2.weight)
+        nn.init.kaiming_normal_(self.fc3.weight)
+        # nn.init.kaiming_normal_(self.fc4.weight)
+        # nn.init.xavier_normal_(self.fc5.weight)
          
+
     def forward(self, x):
         x = self.fc1(x)
-        x = self.bn(x)
+        x = self.bn1(x)
         x = F.relu(x)
         x = self.fc2(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        # x = self.bn3(x)
+        # x = F.relu(x)
+        # x = self.fc4(x)
+        # x = self.bn4(x)
+        # x = F.relu(x)
+        # x = self.fc5(x)
         return x
         
 img_type = 'naip'
@@ -47,11 +68,6 @@ tilenet.load_state_dict(checkpoint)
 tilenet.eval()
 
 print('TileNet50 set up complete.')
-
-lr = 1e-3
-optimizer = optim.Adam(tilenet.parameters(), lr=lr, betas=(0.5, 0.999))
-
-print('Optimizer set up complete.')
 
 dataloader = TilesClassificationDataLoader(batch_size=1)
 
@@ -79,7 +95,7 @@ for i, sample in enumerate(tqdm(dataloader)):
     X[i, :] = z
     
 
-num_classes=np.unique(y).size
+num_classes=66
 
 # 60-20-20 split
 X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)
@@ -87,17 +103,21 @@ X_tr, X_val, y_tr, y_val  = train_test_split(X_tr, y_tr, test_size=0.25) # 0.25x
 
 num_epochs = 1
 train_size = y_tr.size
-hidden_dim = 128
+print(train_size)
+hidden_dim = 256
 
 print(z_dim)
 print(num_classes)
 model = TwoLayerFC(z_dim, hidden_dim, num_classes)
+model.train()
+
+lr = 1e-3
+optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 
 for e in range(num_epochs):
-    for i in range(train_size//100):
-        print(i)
-        x = torch.tensor(X_tr[i:i+100, :]).to(dtype=torch.float32)
-        y = torch.tensor(y_tr[i:i+100])
+    for i in range(train_size//10):
+        x = torch.tensor(X_tr[i*10:(i+1)*10, :]).to(dtype=torch.float32)
+        y = torch.tensor(y_tr[i*10:(i+1)*10]).type(torch.LongTensor)
         scores = model(x)
         loss = F.cross_entropy(scores, y)
         optimizer.zero_grad()
@@ -112,11 +132,13 @@ num_samples = 0
 model.eval()
 
 with torch.no_grad():
-    for i in range(y_train.size//100):
-        x = torch.tensor(X_te[i:i+100, :]).to(dtype=torch.float32)
-        y = torch.tensor(y_te[i:i+100]).to(dtype=torch.long)
+    for i in range(y_te.size//10):
+        x = torch.tensor(X_te[i*10:(i+1)*10, :]).to(dtype=torch.float32)
+        y = torch.tensor(y_te[i*10:(i+1)*10]).type(torch.LongTensor)
         scores = model(x)
         _, preds = scores.max(1)
+        print(y)
+        print(preds)
         num_correct += (preds == y).sum()
         num_samples += preds.size(0)
     acc = float(num_correct) / num_samples

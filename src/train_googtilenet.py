@@ -9,9 +9,14 @@ import time
 from tqdm import tqdm 
 
 from data.dataset_utils import TripletDataLoader
-from utils import get_timestr
 from model_architectures.googlenet.googtilenet import make_googtilenet
-model_name = 'googtilenet_v1'
+# model_name = 'googtilenet_v1'
+# model_name = 'GoogTiLeNet_xav'
+# from model_architectures.googlenet.googtilenet_v3 import make_googtilenet
+# model_name = 'GoogTiLeNet_v3'
+from utils import get_timestr
+# from model_architectures.googlenet.googtilenet import make_googtilenet
+model_name = 'googtilenet'
 # from model_architectures.googlenet.googtilenet_v3 import make_googtilenet
 # model_name = 'GoogTiLeNet_v3_xav'
 # from model_architectures.googlenet.googtilenet_v3_trim import make_googtilenet
@@ -37,8 +42,10 @@ net.train()
 
 print('GoogTiLeNet set up complete.')
 
-lr = 1e-2
-optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999))#, weight_decay=0.01)
+lr = 1e-3
+optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999))
+# lr = 1e-2
+# optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.5, 0.999))#, weight_decay=0.01)
 scheduler = None
 # scheduler = MultiStepLR(optimizer, 
 #                         milestones=[1,2,3, 4], # List of epoch indices
@@ -55,7 +62,8 @@ epoch_start = 0
 margin = 10
 l2 = 0.01
 print_every = 10000
-max_grad_norm = None #1.0
+max_grad_norm =None
+# max_grad_norm = None #1.0
 
 model_dir = 'models/'
 if not os.path.exists(model_dir): os.makedirs(model_dir)
