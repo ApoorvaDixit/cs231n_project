@@ -150,7 +150,7 @@ class VisionTransformer(nn.Module):
         self,
         image_size: int = 100,
         patch_size: int = 10,
-        num_layers: int = 6,
+        num_layers: int = 12,
         num_heads: int = 12,
         hidden_dim: int = 768,
         mlp_dim: int = 3072,
@@ -278,7 +278,6 @@ class VisionTransformer(nn.Module):
         # Reshape and permute the input tensor
         x = self._process_input(x)
         n = x.shape[0]
-
         # print("X, n: ", x, n)
 
         # Expand the class token to the full batch
