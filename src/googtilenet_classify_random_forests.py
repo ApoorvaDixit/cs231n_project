@@ -66,7 +66,7 @@ for i in range(n_trials):
     rf = RandomForestClassifier()
     rf.fit(X_tr, y_tr)
     accs[i] = rf.score(X_te, y_te)
-    print(f'Trial {i} has accuracy {accs[i]}')
+    # print(f'Trial {i} has accuracy {accs[i]}')
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
 
