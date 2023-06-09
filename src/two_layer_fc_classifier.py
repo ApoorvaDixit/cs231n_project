@@ -3,8 +3,8 @@ import os
 from tqdm import tqdm 
 from data.dataset_utils import TilesClassificationDataLoader
 from model_architectures.googlenet.googtilenet import make_googtilenet
-
 from model_architectures.resnets.tilenet import make_tilenet_18
+
 from torch.autograd import Variable
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -38,6 +38,8 @@ class TwoLayerFC(nn.Module):
         
         
 def check_accuracy(model, X, Y):
+    num_correct = 0
+    num_samples = 0
     with torch.no_grad():
         for i in range(Y.size//10):
             x = torch.tensor(X[i*10:(i+1)*10, :]).to(dtype=torch.float32)
@@ -49,12 +51,12 @@ def check_accuracy(model, X, Y):
         return float(num_correct) / num_samples
     
 
-img_type = 'naip'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 cuda = torch.cuda.is_available()
 in_channels = 4
 z_dim = 512
+
 tilenet = make_googtilenet(in_channels=in_channels, z_dim=z_dim)
 if cuda: tilenet.cuda()
 
@@ -62,11 +64,10 @@ checkpoint = torch.load(args.checkpoint)
 tilenet.load_state_dict(checkpoint)
 tilenet.eval()
 
-print('TileNet50 set up complete.')
-
-dataloader = TilesClassificationDataLoader(batch_size=1)
+print(f'{args.checkpoint} set up complete.')
 
 n_tiles = 8000
+dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested=n_tiles)
 X = np.zeros((n_tiles, z_dim))
 y = np.zeros(n_tiles)
 
@@ -82,7 +83,7 @@ for i, sample in enumerate(tqdm(dataloader)):
     tile = Variable(tile)
     if cuda: 
         tile = tile.cuda()
-    z = tilenet.encode(tile)
+    z = tilenet.forward(tile)
     if cuda: z = z.cpu()
     z = z.data.numpy()
 
@@ -95,37 +96,51 @@ num_classes=66
 # 60-20-20 split
 X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)
 X_tr, X_val, y_tr, y_val  = train_test_split(X_tr, y_tr, test_size=0.25) # 0.25x0.8 = 0.2
-
-num_epochs = 1
 train_size = y_tr.size
-print(train_size)
-hidden_dim = 256
 
-print(z_dim)
-print(num_classes)
-model = TwoLayerFC(z_dim, hidden_dim, num_classes)
-model.train()
+num_epochs = 50
+hidden_dims = [8,16,32,64,128, 256]
 
-lr = 1e-3
-optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+best_acc = 0
+best_model = None
+best_hidden = None
+for hidden_dim in hidden_dims:
+    print('Training model for hidden dim ', hidden_dim )
+    model = TwoLayerFC(z_dim, hidden_dim, num_classes)
+    model.train()
 
-for e in range(num_epochs):
-    for i in range(train_size//10):
-        x = torch.tensor(X_tr[i*10:(i+1)*10, :]).to(dtype=torch.float32)
-        y = torch.tensor(y_tr[i*10:(i+1)*10]).type(torch.LongTensor)
-        scores = model(x)
-        loss = F.cross_entropy(scores, y)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-                
-                
-# evaluate
-print("Checking accuracy.")
-num_correct = 0
-num_samples = 0
+    lr = 1e-3
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5)
+
+    for e in range(num_epochs):
+        for i in range(train_size//10):
+            x = torch.tensor(X_tr[i*10:(i+1)*10, :]).to(dtype=torch.float32)
+            y = torch.tensor(y_tr[i*10:(i+1)*10]).type(torch.LongTensor)
+            scores = model(x)
+            loss = F.cross_entropy(scores, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        if scheduler:
+                scheduler.step(loss)
+    
+    model.eval()
+    acc = check_accuracy(model, X_val, y_val)
+    print(f'{100*acc:.2f} correct on val set\n' )
+
+    if acc>best_acc:
+        best_acc = acc
+        best_model = model
+        best_hidden = hidden_dim
+
+
+acc = check_accuracy(best_model, X_val, y_val)
+print(f'{best_hidden} is best hidden dimension - verifying {100*acc:.2f} is its accuracy on val set')
+
 model.eval()
-
+acc = check_accuracy(model, X_te, y_te)
+print(f'{best_hidden} is best hidden dimension - {100*acc:.2f} is its accuracy on test set')
 
     
 
