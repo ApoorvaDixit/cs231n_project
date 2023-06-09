@@ -24,23 +24,23 @@ vit.train()
 
 print('Transformer set up complete.')
 
-lr = 1e-4
-optimizer = optim.Adam(vit.parameters(), lr=lr, betas=(0.5, 0.999))
+lr = 1e-3
+optimizer = optim.Adam(vit.parameters(), lr=lr, betas=(0.5, 0.999), weight_decay=0.01)
 
 print('Optimizer set up complete.')
 
 # increase batch size to address nan loss value
-dataloader = TripletDataLoader(img_type, batch_size=16)
+# dataloader = TripletDataLoader(img_type, batch_size=16)
 
 # Original
-# dataloader = TripletDataLoader(img_type, batch_size=64)
+dataloader = TripletDataLoader(img_type, batch_size=64)
 
 # Sanity check
 # dataloader = TripletDataLoader(img_type, batch_size=1)
 
 print('Dataset set up.')
 
-epochs = 10
+epochs = 15
 margin = 10
 l2 = 0.01
 print_every = 10000
@@ -57,6 +57,6 @@ for epoch in tqdm(range(0, epochs), desc="epoch loop"):
     (avg_loss, avg_l_n, avg_l_d, avg_l_nd) = train_triplet_epoch(
         vit, cuda, dataloader, optimizer, epoch+1, margin=margin, l2=l2,
         print_every=print_every, t0=t0)
-
-model_fn = os.path.join(model_dir, 'ViT_epoch{}.ckpt'.format(epochs))
-torch.save(net.state_dict(), model_fn)
+    
+    model_fn = os.path.join(model_dir, 'ViT_epoch{}.ckpt'.format(epoch+1))
+    torch.save(vit.state_dict(), model_fn)

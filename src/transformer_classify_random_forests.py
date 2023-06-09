@@ -11,6 +11,12 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-cp", "--checkpoint", help="Relative path to checkpoint file. For example, models/GoogTiLeNet_epoch10.ckpt")
+args = parser.parse_args()
+
 cuda = torch.cuda.is_available()
 image_size = 100
 z_dim = 512
@@ -19,16 +25,16 @@ if cuda:
     vit = vit.cuda()
 
 # Load parameters
-model_fn = 'models/ViT_epoch5.ckpt'
-checkpoint = torch.load(model_fn)
+checkpoint = torch.load(args.checkpoint)
 vit.load_state_dict(checkpoint)
 vit.eval()
 
-dataloader = TilesClassificationDataLoader(batch_size=1)
 
 n_tiles = 8000
 X = np.zeros((n_tiles, z_dim))
 y = np.zeros(n_tiles)
+
+dataloader = TilesClassificationDataLoader(batch_size=1, num_tiles_requested = n_tiles)
 
 
 for i, sample in enumerate(tqdm(dataloader)):
@@ -45,6 +51,7 @@ for i, sample in enumerate(tqdm(dataloader)):
 
     z.squeeze(0)
     z = z.reshape(z.shape[1], z.shape[2])
+    
     z = z.mean()
 
     X[i, :] = z
@@ -56,10 +63,19 @@ n_trials = 100
 accs = np.zeros((n_trials,))
 for i in range(n_trials):
     # Splitting data and training RF classifer
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2)
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.5)
     rf = RandomForestClassifier()
     rf.fit(X_tr, y_tr)
     accs[i] = rf.score(X_te, y_te)
     print(f'Trial {i} has accuracy {accs[i]}')
 print('Mean accuracy: {:0.4f}'.format(accs.mean()))
 print('Standard deviation: {:0.4f}'.format(accs.std()))
+
+
+# 5 epoch, 1e-5
+# Mean accuracy: 0.3112
+# Standard deviation: 0.0091
+
+# 5 epoch, 1e-3
+# Mean accuracy: 0.3514
+# Standard deviation: 0.0107
